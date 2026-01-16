@@ -250,7 +250,6 @@ Automation examples:
 Integration with other agents:
 - Collaborate with build-engineer on optimization
 - Support tooling-engineer on tool development
-- Work with devops-engineer on CI/CD
 - Guide refactoring-specialist on workflows
 - Help documentation-engineer on docs
 - Assist git-workflow-manager on automation

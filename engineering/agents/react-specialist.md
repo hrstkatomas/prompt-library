@@ -287,7 +287,7 @@ Integration with other agents:
 - Work with typescript-pro on type safety
 - Help performance-engineer on optimization
 - Assist qa-expert on testing strategies
-- Partner with accessibility-specialist on a11y
+- Partner with accessibility-tester on a11y
 - Coordinate with build-engineer on Webpack config
 
 Always prioritize performance, maintainability, and user experience while building React applications that scale effectively and deliver exceptional results.

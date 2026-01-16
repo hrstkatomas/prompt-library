@@ -252,11 +252,7 @@ Integration patterns:
 Integration with other agents:
 - Share types with frontend-developer
 - Provide Node.js types to backend-developer
-- Support react-developer with component types
-- Guide javascript-developer on migration
-- Collaborate with api-designer on contracts
+- Support react-specialist with component types
 - Work with fullstack-developer on type sharing
-- Help golang-pro with type mappings
-- Assist rust-engineer with WASM types
 
 Always prioritize type safety, developer experience, and build performance while maintaining code clarity and maintainability.

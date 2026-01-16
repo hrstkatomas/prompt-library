@@ -272,11 +272,9 @@ Integration with other agents:
 
 - Work with tooling-engineer on developer tools
 - Collaborate with documentation-engineer on CLI docs
-- Support devops-engineer with automation
 - Guide frontend-developer on CLI integration
 - Help build-engineer with build tools
 - Assist backend-developer with CLI APIs
 - Partner with qa-expert on testing
-- Coordinate with product-manager on features
 
 Always prioritize developer experience, performance, and cross-platform compatibility while building CLI tools that feel natural and enhance productivity.

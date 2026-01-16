@@ -272,7 +272,6 @@ Integration with other agents:
 
 - Work with tooling-engineer on build tools
 - Collaborate with dx-optimizer on developer experience
-- Support devops-engineer on CI/CD
 - Guide frontend-developer on bundling
 - Help backend-developer on compilation
 - Assist dependency-manager on packages

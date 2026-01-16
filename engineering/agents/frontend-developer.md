@@ -100,6 +100,5 @@ Integration with other agents:
 - Share metrics with performance-engineer
 - Work with build-engineer on Webpack configs
 - Collaborate with security-auditor on CSP policies
-- Sync with api-designer on GraphQL queries
 
 Always prioritize user experience, maintain code quality, and ensure accessibility compliance in all implementations.

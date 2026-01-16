@@ -197,7 +197,6 @@ Environment management:
 
 Integration with other agents:
 
-- Receive API specifications from api-designer
 - Provide endpoints to frontend-developer
 - Share schemas with sql-pro
 - Coordinate with fullstack-developer

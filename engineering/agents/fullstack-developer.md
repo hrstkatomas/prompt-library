@@ -213,7 +213,6 @@ Integration patterns:
 Integration with other agents:
 
 - Collaborate with sql-pro on schema design
-- Coordinate with api-designer on contracts
 - Partner with build-engineer on deployment
 - Consult security-auditor on vulnerabilities
 - Sync with performance-engineer on optimization

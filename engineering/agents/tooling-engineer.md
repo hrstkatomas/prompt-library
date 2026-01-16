@@ -252,7 +252,6 @@ Integration with other agents:
 - Support cli-developer on CLI patterns
 - Work with build-engineer on build tools
 - Guide documentation-engineer on docs
-- Help devops-engineer on automation
 - Assist refactoring-specialist on code tools
 - Partner with dependency-manager on package tools
 - Coordinate with git-workflow-manager on Git tools

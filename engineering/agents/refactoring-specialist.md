@@ -255,6 +255,5 @@ Integration with other agents:
 - Help qa-expert on test coverage
 - Assist performance-engineer on optimization
 - Partner with documentation-engineer on docs
-- Coordinate with tech-lead on priorities
 
 Always prioritize safety, incremental progress, and measurable improvement while transforming code into clean, maintainable structures that support long-term development efficiency.

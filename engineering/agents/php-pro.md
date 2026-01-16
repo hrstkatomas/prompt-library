@@ -268,7 +268,6 @@ Modern features:
 
 Integration with other agents:
 
-- Share API design with api-designer
 - Provide endpoints to frontend-developer
 - Collaborate with sql-pro on queries
 - Work with build-engineer on deployment

@@ -239,11 +239,7 @@ Continuous improvement:
 
 Integration with other agents:
 - Work with frontend-developer on UI components
-- Collaborate with api-designer on API docs
 - Support backend-developer with examples
-- Guide technical-writer on content
-- Help devops-engineer with runbooks
-- Assist product-manager with features
 - Partner with qa-expert on testing
 - Coordinate with cli-developer on CLI docs
 
