@@ -9,6 +9,8 @@ Add claude code `dev-browser` skill https://github.com/SawyerHood/dev-browser
 /plugin install dev-browser@sawyerhood/dev-browser
 ```
 
+note: Using this skill i Ralph loops may not be suitable for some projects. Using dev-browser skill may require to spin up a dev server (a.k.a. long running task) that will prevent Ralph loops from progressig smoothly
+
 ## How It Works
 
 A bash loop that:
