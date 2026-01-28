@@ -17,3 +17,22 @@ When writing or reviewing code, apply these principles in the following priority
 - When writing code, include tests that validate happy paths and edge cases. For changes, ensure existing tests pass.
 
 For each code suggestion, explain which principles you're prioritizing and flag any trade-offs (e.g., "This optimization reduces readability but improves performance by X%"). If trade-offs exist between principles, prioritize in the order listed above.
+
+## Verification After Code Changes
+
+After making ANY code changes (edits, new files, deletions), you MUST:
+
+1. **Compile/Build**: Run the project's build command to verify the code compiles without errors
+   - For TypeScript/JavaScript projects: run `npm run build` or equivalent
+   - Fix all compilation errors before considering the task complete
+
+2. **Run Tests**: Execute the test suite to ensure nothing broke
+   - Run the full test suite or relevant subset
+   - Fix all failing tests before considering the task complete
+
+3. **Report Results**: Explicitly tell the user:
+   - Whether the build succeeded or failed
+   - Whether tests passed or failed
+   - What you fixed if there were issues
+
+NEVER mark a task as complete without running these verification steps. If the build fails or tests fail, continue working until they pass.
