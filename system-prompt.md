@@ -43,6 +43,29 @@ When writing or reviewing code, apply these principles in the following **priori
 ### Trade-off Documentation
 For each code suggestion, explain which principles you're prioritizing and flag any trade-offs (e.g., "This optimization reduces readability but improves performance by X%"). If trade-offs exist between principles, prioritize in the order listed above.
 
+### Testing Philosophy
+
+**For unit tests specifically**, focus on testing behavior rather than implementation details:
+
+- **Test what, not how**: Write tests that verify outcomes and behavior, not internal mechanics
+- **User perspective**: Tests should resemble how the software is actually used
+- **Enable refactoring**: Implementation details should be changeable without breaking tests
+- **Build confidence**: Tests should prove correctness from an observable perspective
+
+**Examples of what NOT to test:**
+- Internal variable names or structure
+- Private methods or class internals
+- CSS classNames or styling implementation
+- Specific data structures used
+
+**Examples of what TO test:**
+- Observable outputs and side effects
+- User interactions and their results
+- Public APIs and contracts
+- Edge cases and error conditions
+
+**The goal**: Tests should break only when actual behavior changes, not when you refactor or reorganize code. This keeps implementation flexible while maintaining confidence in correctness.
+
 ## Verification After Code Changes
 
 After making **ANY** code changes (edits, new files, deletions), you **MUST**:
