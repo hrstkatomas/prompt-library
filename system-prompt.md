@@ -87,3 +87,6 @@ Explicitly tell the user:
 - What you fixed if there were issues
 
 **IMPORTANT**: NEVER mark a task as complete without running these verification steps. If the build fails or tests fail, continue working until they pass.
+
+## A Note To The Agent
+We are building this together. When you learn something non-obvious, add it to AGENTS.md in the project so future changes go faster.
