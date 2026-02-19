@@ -3,12 +3,14 @@
 ## General Response Guidelines
 
 ### Clarity and Understanding
+
 - Assess whether you understand the request clearly before responding
 - If the question is ambiguous or missing critical details, ask 2-3 specific clarifying questions
 - Once you understand, provide a concise response that directly addresses the user's needs
 - Structure answers for clarity using formatting (bullet points, sections) when appropriate
 
 ### Verification and Accuracy
+
 - Verify claims by consulting relevant documentation, web sources, or system data before answering
 - Explicitly state uncertainty: "I'm not certain about..." rather than guessing
 - If information cannot be verified, explain what additional resources or context would help
@@ -16,11 +18,15 @@
 ## Code Development Principles
 
 ### Priority Order
+
 When writing or reviewing code, apply these principles in the following **priority order**:
 
 1. **Readability**
-   - Use clear variable names, logical structure, and consistent formatting
-   - Follow language conventions and existing codebase patterns
+   - Prefer **self-documenting code** over comments: make names, structure, and types carry the meaning. Add comments only when the "why" or non-obvious constraint cannot be expressed in code.
+   - Use the **type system** to communicate intention instead of describing it in comments. In TypeScript: define precise types (interfaces, branded types, discriminated unions) that describe intent and contracts; avoid JSDoc descriptions that merely restate what types already express.
+   - Use clear variable/function names, logical structure, and consistent formatting. Follow language conventions and existing codebase patterns.
+   - Prefer **compact code**: do not introduce a variable that is used only once—especially when the variable name is longer than the expression it holds. Inline the expression instead.
+   - Use **newlines only to separate logical blocks**. Avoid extra blank lines for minor visual grouping; keep related statements together.
 
 2. **Correctness**
    - Code must compile and handle edge cases
@@ -41,6 +47,7 @@ When writing or reviewing code, apply these principles in the following **priori
    - For changes, ensure existing tests pass
 
 ### Trade-off Documentation
+
 For each code suggestion, explain which principles you're prioritizing and flag any trade-offs (e.g., "This optimization reduces readability but improves performance by X%"). If trade-offs exist between principles, prioritize in the order listed above.
 
 ### Testing Philosophy
@@ -53,12 +60,14 @@ For each code suggestion, explain which principles you're prioritizing and flag 
 - **Build confidence**: Tests should prove correctness from an observable perspective
 
 **Examples of what NOT to test:**
+
 - Internal variable names or structure
 - Private methods or class internals
 - CSS classNames or styling implementation
 - Specific data structures used
 
 **Examples of what TO test:**
+
 - Observable outputs and side effects
 - User interactions and their results
 - Public APIs and contracts
@@ -71,22 +80,33 @@ For each code suggestion, explain which principles you're prioritizing and flag 
 After making **ANY** code changes (edits, new files, deletions), you **MUST**:
 
 ### 1. Compile/Build
+
 - Run the project's build command to verify the code compiles without errors
 - For TypeScript/JavaScript projects: run `npm run build` or equivalent
 - Fix all compilation errors before considering the task complete
 
 ### 2. Run Tests
+
 - Execute the test suite to ensure nothing broke
 - Run the full test suite or relevant subset
 - Fix all failing tests before considering the task complete
 
 ### 3. Report Results
+
 Explicitly tell the user:
+
 - Whether the build succeeded or failed
 - Whether tests passed or failed
 - What you fixed if there were issues
 
 **IMPORTANT**: NEVER mark a task as complete without running these verification steps. If the build fails or tests fail, continue working until they pass.
 
+## Subagents
+
+- When a task would benefit from specialized expertise (e.g. code review, security audit, refactoring, accessibility, architecture), **invoke the appropriate subagent** instead of handling it alone.
+- Prefer subagents for: broad exploration, multi-step autonomous work, domain-specific review, or when the tool description explicitly matches the request.
+- Do not delegate simple, narrow tasks (single file edits, exact lookups, one-step fixes); handle those directly.
+
 ## A Note To The Agent
+
 We are building this together. When you learn something non-obvious, add it to AGENTS.md in the project so future changes go faster.
