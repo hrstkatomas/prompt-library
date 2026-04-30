@@ -1,0 +1,184 @@
+#!/usr/bin/env python3
+import base64
+import json
+import os
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+YT_BASE = os.environ.get('YOUTRACK_BASE_URL', '').rstrip('/')
+YT_TOKEN = os.environ.get('YOUTRACK_TOKEN') or os.environ.get('YOUTRACK_LSDEVTOOLS_TOKEN', '')
+TOGGL_TOKEN = os.environ.get('TOGGL_TOKEN', '')
+TAKER_FIELD = os.environ.get('YOUTRACK_TAKER_FIELD', 'Taker')
+MAPPING_PATH = Path.home() / '.youtrack-toggl-mapping.json'
+
+if not YT_BASE:
+    print('YOUTRACK_BASE_URL not set (e.g. https://youtrack.example.com)', file=sys.stderr)
+    sys.exit(1)
+if not YT_TOKEN:
+    print('YOUTRACK_TOKEN or YOUTRACK_LSDEVTOOLS_TOKEN not set', file=sys.stderr)
+    sys.exit(1)
+if not TOGGL_TOKEN:
+    print('TOGGL_TOKEN not set', file=sys.stderr)
+    sys.exit(1)
+
+_toggl_auth = 'Basic ' + base64.b64encode(f'{TOGGL_TOKEN}:api_token'.encode()).decode()
+
+
+def yt_get(path, params=None):
+    url = f'{YT_BASE}/api{path}'
+    if params:
+        url += '?' + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={
+        'Authorization': f'Bearer {YT_TOKEN}',
+        'Accept': 'application/json',
+    })
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f'YouTrack GET {path}: {e.code} {e.read().decode()}')
+
+
+def toggl_get(path, params=None):
+    url = f'https://api.track.toggl.com/api/v9{path}'
+    if params:
+        url += '?' + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={
+        'Authorization': _toggl_auth,
+        'Content-Type': 'application/json',
+    })
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f'Toggl GET {path}: {e.code} {e.read().decode()}')
+
+
+def toggl_post(path, body):
+    req = urllib.request.Request(
+        f'https://api.track.toggl.com/api/v9{path}',
+        data=json.dumps(body).encode(),
+        headers={'Authorization': _toggl_auth, 'Content-Type': 'application/json'},
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f'Toggl POST {path}: {e.code} {e.read().decode()}')
+
+
+def toggl_put(path, body):
+    req = urllib.request.Request(
+        f'https://api.track.toggl.com/api/v9{path}',
+        data=json.dumps(body).encode(),
+        headers={'Authorization': _toggl_auth, 'Content-Type': 'application/json'},
+        method='PUT',
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f'Toggl PUT {path}: {e.code} {e.read().decode()}')
+
+
+def load_mapping():
+    if not MAPPING_PATH.exists():
+        return {'workspace_id': None, 'synced_entries': [], 'issues': {}}
+    return json.loads(MAPPING_PATH.read_text())
+
+
+def save_mapping(mapping):
+    MAPPING_PATH.write_text(json.dumps(mapping, indent=2))
+
+
+def main():
+    mapping = load_mapping()
+
+    print('Fetching Toggl workspace...')
+    me = toggl_get('/me')
+    workspace_id = me['default_workspace_id']
+    mapping['workspace_id'] = workspace_id
+    print(f'  Workspace ID: {workspace_id}')
+
+    print('Fetching Toggl projects...')
+    toggl_projects = toggl_get(f'/workspaces/{workspace_id}/projects', {'active': 'both'})
+    projects_by_name = {p['name']: p for p in toggl_projects}
+    projects_by_id = {p['id']: p for p in toggl_projects}
+    print(f'  Found {len(toggl_projects)} projects')
+
+    print(f'Fetching YouTrack issues ({TAKER_FIELD}: me)...')
+    issues = yt_get('/issues', {
+        'query': f'{TAKER_FIELD}: me',
+        'fields': 'id,idReadable,summary,resolved',
+        '$top': '500',
+    })
+    print(f'  Found {len(issues)} issues')
+
+    created = archived = restored = skipped = 0
+
+    for issue in issues:
+        project_name = f'[{issue["idReadable"]}] {issue["summary"]}'[:255]
+        is_resolved = issue['resolved'] is not None
+        existing_mapping = mapping['issues'].get(issue['idReadable'])
+        toggl_project = projects_by_id.get(existing_mapping['toggl_project_id']) if existing_mapping else None
+
+        if toggl_project is None:
+            toggl_project = projects_by_name.get(project_name)
+        if toggl_project is None:
+            prefix = f'[{issue["idReadable"]}]'
+            toggl_project = next((p for p in toggl_projects if p['name'].startswith(prefix)), None)
+
+        if not is_resolved:
+            if toggl_project is None:
+                print(f'  [CREATE] {issue["idReadable"]}: {issue["summary"][:50]} ... ', end='', flush=True)
+                toggl_project = toggl_post(f'/workspaces/{workspace_id}/projects', {
+                    'name': project_name, 'active': True, 'is_private': False,
+                })
+                print(f'#{toggl_project["id"]}')
+                created += 1
+            elif not toggl_project['active']:
+                print(f'  [RESTORE] {issue["idReadable"]} → #{toggl_project["id"]} ... ', end='', flush=True)
+                toggl_put(f'/workspaces/{workspace_id}/projects/{toggl_project["id"]}', {'active': True})
+                print('done')
+                toggl_project['active'] = True
+                restored += 1
+            else:
+                print(f'  [OK] {issue["idReadable"]} → #{toggl_project["id"]}')
+                skipped += 1
+            mapping['issues'][issue['idReadable']] = {
+                'toggl_project_id': toggl_project['id'],
+                'name': project_name,
+            }
+        else:
+            if toggl_project and toggl_project['active']:
+                print(f'  [ARCHIVE] {issue["idReadable"]} → #{toggl_project["id"]} ... ', end='', flush=True)
+                toggl_put(f'/workspaces/{workspace_id}/projects/{toggl_project["id"]}', {'active': False})
+                print('done')
+                archived += 1
+                if existing_mapping:
+                    mapping['issues'][issue['idReadable']] = {
+                        **existing_mapping,
+                        'toggl_project_id': toggl_project['id'],
+                    }
+            elif toggl_project:
+                print(f'  [ARCHIVED] {issue["idReadable"]} → #{toggl_project["id"]}')
+                skipped += 1
+            else:
+                print(f'  [SKIP] {issue["idReadable"]}: resolved, no Toggl project')
+                skipped += 1
+
+    save_mapping(mapping)
+    print(f'\nDone: {created} created, {archived} archived, {restored} restored, {skipped} unchanged')
+    print(f'Mapping saved → {MAPPING_PATH}')
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
