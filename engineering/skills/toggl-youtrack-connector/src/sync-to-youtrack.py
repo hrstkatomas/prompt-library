@@ -2,6 +2,7 @@
 import base64
 import json
 import os
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
@@ -9,19 +10,30 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+
+def resolve_secret(value: str) -> str:
+    """Resolve op:// references via 1Password CLI; return plain values unchanged."""
+    if not value or not value.startswith('op://'):
+        return value
+    result = subprocess.run(['op', 'read', value], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f'1Password lookup failed for {value!r}: {result.stderr.strip()}')
+    return result.stdout.strip()
+
+
 YT_BASE = os.environ.get('YOUTRACK_BASE_URL', '').rstrip('/')
-YT_TOKEN = os.environ.get('YOUTRACK_TOKEN') or os.environ.get('YOUTRACK_LSDEVTOOLS_TOKEN', '')
-TOGGL_TOKEN = os.environ.get('TOGGL_TOKEN', '')
+YT_TOKEN = resolve_secret(os.environ.get('YOUTRACK_TOKEN') or os.environ.get('YOUTRACK_LSDEVTOOLS_TOKEN', ''))
+TOGGL_TOKEN = resolve_secret(os.environ.get('TOGGL_TOKEN', ''))
 MAPPING_PATH = Path.home() / '.youtrack-toggl-mapping.json'
 
 if not YT_BASE:
     print('YOUTRACK_BASE_URL not set', file=sys.stderr)
     sys.exit(1)
 if not YT_TOKEN:
-    print('YOUTRACK_TOKEN or YOUTRACK_LSDEVTOOLS_TOKEN not set', file=sys.stderr)
+    print('YOUTRACK_TOKEN or YOUTRACK_LSDEVTOOLS_TOKEN not set (plain value or op:// reference)', file=sys.stderr)
     sys.exit(1)
 if not TOGGL_TOKEN:
-    print('TOGGL_TOKEN not set', file=sys.stderr)
+    print('TOGGL_TOKEN not set (plain value or op:// reference)', file=sys.stderr)
     sys.exit(1)
 
 _toggl_auth = 'Basic ' + base64.b64encode(f'{TOGGL_TOKEN}:api_token'.encode()).decode()
