@@ -171,6 +171,57 @@ def main():
                 print(f'  [SKIP] {issue["idReadable"]}: resolved, no Toggl project')
                 skipped += 1
 
+    # Sync rotating monthly service ticket (FSWEB project, tag: service-ticket)
+    print('Fetching FSWEB service ticket (tag: service-ticket, unresolved)...')
+    service_issues = yt_get('/issues', {
+        'query': 'project: FSWEB tag: service-ticket #Unresolved',
+        'fields': 'id,idReadable,summary,resolved',
+        '$top': '1',
+    })
+    special = mapping.setdefault('special_tickets', {})
+    cached = special.get('service_ticket')  # {'yt_id': '...', 'toggl_project_id': ...}
+
+    current_service = service_issues[0] if service_issues else None
+
+    if cached and (current_service is None or current_service['idReadable'] != cached['yt_id']):
+        # Old ticket rotated out — archive its Toggl project if still active
+        old_project = projects_by_id.get(cached.get('toggl_project_id'))
+        if old_project and old_project['active']:
+            print(f'  [ARCHIVE service] {cached["yt_id"]} → #{old_project["id"]} ... ', end='', flush=True)
+            toggl_put(f'/workspaces/{workspace_id}/projects/{old_project["id"]}', {'active': False})
+            print('done')
+            archived += 1
+
+    if current_service:
+        project_name = f'[{current_service["idReadable"]}] {current_service["summary"]}'[:255]
+        existing_id = cached.get('toggl_project_id') if cached and cached['yt_id'] == current_service['idReadable'] else None
+        toggl_project = projects_by_id.get(existing_id) if existing_id else None
+        if toggl_project is None:
+            toggl_project = projects_by_name.get(project_name)
+        if toggl_project is None:
+            prefix = f'[{current_service["idReadable"]}]'
+            toggl_project = next((p for p in toggl_projects if p['name'].startswith(prefix)), None)
+
+        if toggl_project is None:
+            print(f'  [CREATE service] {current_service["idReadable"]}: {current_service["summary"][:50]} ... ', end='', flush=True)
+            toggl_project = toggl_post(f'/workspaces/{workspace_id}/projects', {
+                'name': project_name, 'active': True, 'is_private': False,
+            })
+            print(f'#{toggl_project["id"]}')
+            created += 1
+        elif not toggl_project['active']:
+            print(f'  [RESTORE service] {current_service["idReadable"]} → #{toggl_project["id"]} ... ', end='', flush=True)
+            toggl_put(f'/workspaces/{workspace_id}/projects/{toggl_project["id"]}', {'active': True})
+            print('done')
+            restored += 1
+        else:
+            print(f'  [OK service] {current_service["idReadable"]} → #{toggl_project["id"]}')
+            skipped += 1
+
+        special['service_ticket'] = {'yt_id': current_service['idReadable'], 'toggl_project_id': toggl_project['id']}
+    else:
+        print('  No open FSWEB service ticket found.')
+
     save_mapping(mapping)
     print(f'\nDone: {created} created, {archived} archived, {restored} restored, {skipped} unchanged')
     print(f'Mapping saved → {MAPPING_PATH}')

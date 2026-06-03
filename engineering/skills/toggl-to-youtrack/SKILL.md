@@ -6,6 +6,7 @@ description: Sync tracked time from Toggl Track into YouTrack work items. Use th
 # Toggl → YouTrack Sync
 
 Reads Toggl time entries for a date range and posts them as work items on the matching YouTrack issues.
+
 - Matches via mapping file built by `youtrack-to-toggl`
 - Deduplication: already-synced entry IDs stored in mapping — never double-posts
 - Skips running entries (duration < 0) and entries < 1 minute
@@ -20,6 +21,7 @@ Same as `youtrack-to-toggl`: `YOUTRACK_BASE_URL`, `YOUTRACK_TOKEN` (or `YOUTRACK
 1. Check mapping file exists at `~/.youtrack-toggl-mapping.json`. If missing, run `youtrack-to-toggl` first.
 2. Ask user for date range if not provided. Default is last 7 days.
 3. Run the main sync for mapped entries:
+
    ```bash
    SCRIPT=~/.claude/skills/toggl-youtrack-connector/src/sync-to-youtrack.py
 
@@ -32,6 +34,7 @@ Same as `youtrack-to-toggl`: `YOUTRACK_BASE_URL`, `YOUTRACK_TOKEN` (or `YOUTRACK
    # Explicit range
    python3 $SCRIPT --since 2024-01-15 --until 2024-01-31
    ```
+
 4. Handle unmatched entries (see below).
 5. Report synced/classified/failed counts. For failures, show the error message.
 
@@ -40,6 +43,7 @@ Same as `youtrack-to-toggl`: `YOUTRACK_BASE_URL`, `YOUTRACK_TOKEN` (or `YOUTRACK
 After the main sync, find all Toggl entries in the date range that have `duration > 0`, are NOT in `synced_entries`, and either have no `project_id` or their project isn't in the mapping. These are unmatched entries.
 
 Fetch them:
+
 ```bash
 # Use %2B for + in timezone offset — curl doesn't URL-encode query params in the URL string,
 # so a literal + is interpreted as a space by the API, causing "error parsing date".
@@ -53,21 +57,32 @@ For each unmatched entry, read its `description` and classify it:
 
 ### Classification rules
 
-**Overhead** — company-wide and team-level organizational activities  
-Keywords (case-insensitive): `smart friday`, `smart thursday`, `flash talk`, `1:1`, `all-hands`, `all hands`, `company event`, `team update`, `onboarding`, `admin`, `hiring`, `interview`, `standup`, `stand-up`, `retrospective`, `retro`, `sprint planning`, `sprint review`, `planning`, `team meeting`, `kickoff`, `kick-off`  
+**BAU (Business as usual)** — keeping existing systems running; no new functionality  
+Includes: production bug fixes, releases, security/compliance work, traffic management, data processing/crawling issues, bookmaker/odds maintenance.  
+Meetings: component team groomings, component team retros, web/mobi release reviews, team quarterly reports.  
+Keywords (case-insensitive): `production bug`, `prod bug`, `hotfix`, `bug fix`, `bugfix`, `maintenance`, `monitoring`, `health check`, `security fix`, `compliance`, `regulation`, `gdpr`, `crawling`, `scraping`, `data processing`, `crawler`, `bookmaker`, `odds operation`, `grooming`, `refinement`, `retrospective`, `retro`, `release review`, `quarterly report`, `quarterly review`, `sprint review`  
+→ Route to user's **BAU** ticket.
+
+**Overhead** — company-wide and team-level activities not directly productive  
+Includes: Smart Fridays, Flash Talks, 1:1s, all-hands, company events, team updates, onboarding, admin, hiring, instructor/compliance courses.  
+Keywords: `smart friday`, `smart thursday`, `flash talk`, `1:1`, `all-hands`, `all hands`, `company event`, `team update`, `onboarding`, `admin`, `hiring`, `interview`, `standup`, `stand-up`, `planning`, `team meeting`, `kickoff`, `kick-off`, `instructor`, `compliance course`  
 → Route to user's **overhead** ticket.
 
 **Upskilling** — personal learning, conferences, training  
+Includes: personal study, conferences, workshops, AI Ambassadors, internal AI workshops.  
 Keywords: `study`, `conference`, `workshop`, `ai ambassador`, `ai workshop`, `training`, `learning`, `course`, `tutorial`, `reading`, `book club`, `knowledge sharing`, `upskill`  
 → Route to user's **upskilling** ticket.
 
 **Time off** — absence from work  
+Includes: vacation, illness, doctor visits. Do NOT log state holidays or weekends.  
 Keywords: `vacation`, `sick`, `illness`, `doctor`, `time off`, `holiday`, `leave`, `pto`, `day off`, `free day`, `dentist`  
 → Route to user's **time off** ticket.
 
 **Best guess** — if none of the above keywords match, use judgment:
+
 - Does the description name a known project, team, or product area? Find the closest mapped YouTrack issue.
-- Does it sound like overhead work (meetings, coordination, reviewing)? Use overhead.
+- Does it sound like maintenance/keeping things running? Use BAU.
+- Does it sound like overhead work (meetings, coordination)? Use overhead.
 - When genuinely ambiguous, default to overhead and explain why.
 
 Always state the classification reason in the output so the user can verify.
@@ -75,9 +90,11 @@ Always state the classification reason in the output so the user can verify.
 ## Finding special tickets
 
 Check the mapping file for cached special ticket IDs under the `special_tickets` key:
+
 ```json
 {
   "special_tickets": {
+    "bau": "PROJ-100",
     "overhead": "PROJ-123",
     "upskilling": "PROJ-456",
     "time_off": "PROJ-789"
@@ -90,6 +107,14 @@ If not cached, search YouTrack. Try these queries in order until one returns a r
 ```bash
 # Strip trailing slash to avoid double-slash in URL (YOUTRACK_BASE_URL may end with /)
 YT_BASE="${YOUTRACK_BASE_URL%/}"
+
+# BAU
+curl -s -H "Authorization: Bearer $YOUTRACK_TOKEN" -H "Accept: application/json" \
+  "${YT_BASE}/api/issues?query=for:+me+%22Business+as+usual%22&fields=id,idReadable,summary&\$top=5" | jq .
+
+# Also try short form
+curl -s -H "Authorization: Bearer $YOUTRACK_TOKEN" -H "Accept: application/json" \
+  "${YT_BASE}/api/issues?query=for:+me+BAU&fields=id,idReadable,summary&\$top=5" | jq .
 
 # Overhead
 curl -s -H "Authorization: Bearer $YOUTRACK_TOKEN" -H "Accept: application/json" \
@@ -104,9 +129,24 @@ curl -s -H "Authorization: Bearer $YOUTRACK_TOKEN" -H "Accept: application/json"
   "${YT_BASE}/api/issues?query=for:+me+%22Time+off%22&fields=id,idReadable,summary&\$top=5" | jq .
 ```
 
-If a ticket is not found via search, ask the user to provide the YouTrack issue ID manually. Once found, save all three IDs to `special_tickets` in the mapping file so future runs don't need to search again.
+If a ticket is not found via search, ask the user to provide the YouTrack issue ID manually. Once found, save all four IDs to `special_tickets` in the mapping file so future runs don't need to search again.
 
 ## Posting unmatched entries
+
+When fetching unmatched entries, always include the `start` field in the jq filter (e.g., `{id, description, duration, project_id, start}`). You need it to compute the correct timestamp.
+
+**Computing TIMESTAMP_MS — always derive from the entry's `start` field, never hardcode or guess:**
+
+```bash
+# ENTRY_START is the "start" field from the Toggl API, e.g. "2026-05-06T08:15:00+00:00"
+TIMESTAMP_MS=$(python3 -c "
+from datetime import datetime, timezone
+dt = datetime.fromisoformat('${ENTRY_START}')
+print(int(dt.astimezone(timezone.utc).timestamp() * 1000))
+")
+```
+
+Hardcoding a date string like `1746489600000` is dangerous — a one-year offset (2025 vs 2026) is invisible at a glance but will silently post work items to the wrong year.
 
 Post each unmatched entry to its classified ticket using the YouTrack API, then add its ID to `synced_entries` in the mapping file:
 
@@ -138,11 +178,13 @@ Mapped sync:
   12 synced, 0 failed
 
 Unmatched entries (classified):
+  PROJ-100 (bau)        +90m "Component team retro" — keyword: retro
+  PROJ-100 (bau)        +60m "Release review" — keyword: release review
   PROJ-200 (overhead)   +45m "Smart Friday" — keyword: smart friday
   PROJ-200 (overhead)   +30m "1:1 with manager" — keyword: 1:1
   PROJ-201 (upskilling) +60m "AI Ambassador session" — keyword: ai ambassador
   PROJ-202 (time off)   +480m "sick day" — keyword: sick
-  PROJ-100 (best guess) +30m "PR review for auth module" — no keyword match; sounds like dev work, routed to closest active project
+  PROJ-101 (best guess) +30m "PR review for auth module" — no keyword match; sounds like dev work, routed to closest active project
   PROJ-200 (overhead)   +15m "random admin stuff" — no keyword match; ambiguous, defaulted to overhead
 
   6 classified, 0 failed
@@ -157,3 +199,4 @@ Total: 18 synced
 - `403 from YouTrack` → token lacks time tracking write permission
 - `0 to sync` → all entries already synced, or no entries match tracked projects
 - Special ticket not found via search → ask user to provide the YouTrack issue ID manually; save it to `special_tickets` in mapping once confirmed
+- `405 Method Not Allowed` on DELETE → work item delete requires issue-scoped path: `DELETE /api/issues/{issueId}/timeTracking/workItems/{workItemId}`, not `/api/workItems/{workItemId}`
