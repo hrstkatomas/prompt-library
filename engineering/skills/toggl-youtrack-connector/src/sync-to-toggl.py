@@ -2,6 +2,7 @@
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.error
@@ -234,8 +235,26 @@ def main():
     else:
         print('  No open FSWEB service ticket found.')
 
+    # Register manually-created Toggl projects (code reviews, consultations, etc.)
+    # that have [ISSUE-ID] in the name but aren't in the mapping yet.
+    registered = 0
+    issue_id_re = re.compile(r'^\[([A-Z]+-\d+)\]')
+    for project in toggl_projects:
+        m = issue_id_re.match(project['name'])
+        if not m:
+            continue
+        issue_id = m.group(1)
+        if issue_id in mapping['issues']:
+            continue
+        mapping['issues'][issue_id] = {
+            'toggl_project_id': project['id'],
+            'name': project['name'],
+        }
+        print(f'  [REGISTER] {issue_id} → #{project["id"]} (manually created)')
+        registered += 1
+
     save_mapping(mapping)
-    print(f'\nDone: {created} created, {archived} archived, {restored} restored, {skipped} unchanged')
+    print(f'\nDone: {created} created, {archived} archived, {restored} restored, {skipped} unchanged, {registered} registered')
     print(f'Mapping saved → {MAPPING_PATH}')
 
 
